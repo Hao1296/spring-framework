@@ -226,6 +226,13 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 
 	/**
 	 * Return an instance, which may be shared or independent, of the specified bean.
+	 *
+	 * 该方法大体分为2大步:
+	 * 1. 创建或获取bean实例;
+	 *   a. 若存在sharedInstance, 则从sharedInstance中获取bean实例;
+	 *   b. 若不存在sharedInstance, 则开始create bean;
+	 * 2. 类型转换后返回.
+	 *
 	 * @param name the name of the bean to retrieve
 	 * @param requiredType the required type of the bean to retrieve
 	 * @param args arguments to use when creating a bean instance using explicit arguments
@@ -244,6 +251,10 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 		Object bean;
 
 		// Eagerly check singleton cache for manually registered singletons.
+		// 这里的sharedInstance有两种可能性:
+		// 1. Bean本身(singleton已构建完毕);
+		// 2. Bean所对应的FactoryBean实例(singleton构建中)
+		// 当然, 若beanName的scope不是singleton,那sharedInstance直接为null.
 		Object sharedInstance = getSingleton(beanName);
 		if (sharedInstance != null && args == null) {
 			if (logger.isDebugEnabled()) {
@@ -255,10 +266,14 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 					logger.debug("Returning cached instance of singleton bean '" + beanName + "'");
 				}
 			}
+			// 如果sharedInstance是Bean本身,则直接返回;
+			// 如果sharedInstance是FactoryBean实例:
+			// 1. 若beanName以&开头,则返回该FactoryBean;
+			// 2. 若beanName不以&开头,则通过该FactoryBean构建目标bean.
 			bean = getObjectForBeanInstance(sharedInstance, name, beanName, null);
 		}
 
-		else {
+		else {// 各bean初次创建之处
 			// Fail if we're already creating this bean instance:
 			// We're assumably within a circular reference.
 			if (isPrototypeCurrentlyInCreation(beanName)) {
@@ -289,6 +304,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 			}
 
 			try {
+				// 获取BeanDefinition(若beanName对应"子"Bean,则会合并"父"Bean的属性)
 				RootBeanDefinition mbd = getMergedLocalBeanDefinition(beanName);
 				checkMergedBeanDefinition(mbd, beanName, args);
 
@@ -1629,6 +1645,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 			Object beanInstance, String name, String beanName, @Nullable RootBeanDefinition mbd) {
 
 		// Don't let calling code try to dereference the factory if the bean isn't a factory.
+		// 判断是否是要返回FactoryBean本身
 		if (BeanFactoryUtils.isFactoryDereference(name)) {
 			if (beanInstance instanceof NullBean) {
 				return beanInstance;
@@ -1645,6 +1662,8 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 			return beanInstance;
 		}
 
+		// 走到这里,说明beanInstance是FactoryBean实例,且本次并不是要返回FactoryBean本身
+		// 那么需要通过FactoryBean构建真正需要返回的bean
 		Object object = null;
 		if (mbd == null) {
 			object = getCachedObjectForFactoryBean(beanName);
