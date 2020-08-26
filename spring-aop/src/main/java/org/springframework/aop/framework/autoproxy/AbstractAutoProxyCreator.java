@@ -448,7 +448,10 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 
 		ProxyFactory proxyFactory = new ProxyFactory();
 		proxyFactory.copyFrom(this);
-
+		// 判断proxy-target-class属性
+		// Java领域有两种动态代理方式: JDK反射 和 字节码生成(如CGLIB)
+		// 当Spring创建proxy的过程中, 若代理目标实现了至少一个接口, 那么会使用JDK反射;
+		// 反之会使用CGLIB
 		if (!proxyFactory.isProxyTargetClass()) {
 			if (shouldProxyTargetClass(beanClass, beanName)) {
 				proxyFactory.setProxyTargetClass(true);
