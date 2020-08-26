@@ -584,6 +584,10 @@ public class JdbcTemplate extends JdbcAccessor implements JdbcOperations {
 	// Methods dealing with prepared statements
 	//-------------------------------------------------------------------------
 
+	/**
+	 * execute方法基本逻辑是借助PreparedStatementCreator(第一个参数)生成PreparedStatement,
+	 * 然后调用PreparedStatementCallback(第二个参数)来执行PreparedStatement.
+	 */
 	@Override
 	@Nullable
 	public <T> T execute(PreparedStatementCreator psc, PreparedStatementCallback<T> action)
@@ -595,12 +599,15 @@ public class JdbcTemplate extends JdbcAccessor implements JdbcOperations {
 			String sql = getSql(psc);
 			logger.debug("Executing prepared SQL statement" + (sql != null ? " [" + sql + "]" : ""));
 		}
-
+		// 获取数据库连接
 		Connection con = DataSourceUtils.getConnection(obtainDataSource());
 		PreparedStatement ps = null;
 		try {
 			ps = psc.createPreparedStatement(con);
+			// 填充用户设置, 如maxRows,fetchSize等等
 			applyStatementSettings(ps);
+			// 使用action来执行得到的PreparedStatement
+			// 不同方法(如insert,delete,update,select)的区别就在于action, 即如何执行PreparedStatement
 			T result = action.doInPreparedStatement(ps);
 			handleWarnings(ps);
 			return result;
